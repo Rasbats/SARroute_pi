@@ -162,6 +162,7 @@ public:
 
 class IndexTarget {
 public:
+  wxString route_name;
   wxString wpId;
   double beginLat, beginLon;
   double endLat, endLon;
@@ -286,7 +287,7 @@ public:
   virtual void Unlock() { routemutex.Unlock(); }
 
   bool OpenXML(wxString filename, bool reportfailure);
-  void SaveXML(wxString filename);
+  void SaveXML();
 
   void OnContextMenu(double m_lat, double m_lon);
 
@@ -376,8 +377,6 @@ private:
 
   wxString mySelectedRoute;
 
-  double ReadNavobj();
-
   int GetRandomNumber(int range_min, int range_max);
 
   //    Data
@@ -391,7 +390,6 @@ private:
 
   wxString waypointName[2000];
   wxString waypointVisible[2000];
-  void ChartTheRoute(wxString myRoute);
 
   int myZoom;
   int GetScale(double myChartScale);
@@ -406,6 +404,8 @@ private:
   Position* FindActiveWaypoint(wxString wpt_name);
   Position* active_waypoint;
   Position* prev_waypoint;
+  void OnLoadRTZ(wxCommandEvent& event);
+  void ChartTheRoute(wxString myRoute);
   void OnIndex(wxCommandEvent& event);
   void FindIndex(Position* A, Position* B);
   void OnRange(wxCommandEvent& event);

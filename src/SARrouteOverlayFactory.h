@@ -31,6 +31,7 @@
 #include <wx/gdicmn.h>
 #include "ocpn_plugin.h"
 #include <wx/object.h>
+#include <wx/font.h>
 
 class piDC;
 
@@ -96,7 +97,7 @@ public:
   void DrawCurrentIndicators(PlugIn_ViewPort *BBox, bool bRebuildSelList,
                              bool bforce_redraw_currents,
                              bool bdraw_mono_for_mask, wxDateTime myTime);
- */ 
+ */
   void Reset();
   wxImage &DrawGLText(double value, int precision);
   wxImage &DrawGLTextDir(double value, int precision);
@@ -107,12 +108,10 @@ public:
                     wxImage &imageLabel, double myLat, double myLon,
                     int offset);
 
-  void drawGLPolygons(SARrouteOverlayFactory *pof, wxDC *dc, PlugIn_ViewPort *vp,
-                      wxImage &imageLabel, double myLat, double myLon,
-                      int offset);
+  void drawGLPolygons(SARrouteOverlayFactory *pof, wxDC *dc,
+                      PlugIn_ViewPort *vp, wxImage &imageLabel, double myLat,
+                      double myLon, int offset);
 
-  void DrawGLLine(double x1, double y1, double x2, double y2, double width,
-                  wxColour myColour);
   void DrawOLBitmap(const wxBitmap &bitmap, wxCoord x, wxCoord y, bool usemask);
   PlugIn_ViewPort *vp;
   bool m_bShowRate;
@@ -138,13 +137,13 @@ private:
 
   void DrawAllDirectionsInViewPort(PlugIn_ViewPort *BBox);
 
-
   bool DrawDirectionArrow(int x, int y, double rot_angle, double scale,
                           double direction, wxColour arrow_color);
   wxPoint p[12];
 
   // bool DoRenderSARrouteOverlay(PlugIn_ViewPort *vp);
-
+  void DrawGLLine(double x1, double y1, double x2, double y2, double width,
+                  wxColour myColour);
   void DrawMessageWindow(wxString msg, int x, int y, wxFont *mfont);
 
   double m_last_vp_scale;

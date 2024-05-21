@@ -64,7 +64,6 @@ using namespace pugi;
     goto failed; \
   } while (0)
 
-
 static double deg2rad(double degrees) { return M_PI * degrees / 180.0; }
 static double rad2deg(double radians) { return 180.0 * radians / M_PI; }
 
@@ -130,8 +129,6 @@ SARrouteUIDialog::SARrouteUIDialog(wxWindow* parent, SARroute_pi* ppi)
     pConf->Read(_T("SARrouteFolder"), &m_FolderSelected);
   }
 
-  m_default_files_path = ppi->StandardPath();
-
   // m_dirPicker1->GetTextCtrlValue();
 
   // wxMessageBox(m_FolderSelected);
@@ -141,7 +138,6 @@ SARrouteUIDialog::SARrouteUIDialog(wxWindow* parent, SARroute_pi* ppi)
   m_dtNow = wxDateTime::Now();
 
   wxString initStartDate = m_dtNow.Format(_T("%Y-%m-%d  %H:%M"));
-
 
   Fit();
   SetMinSize(GetBestSize());
@@ -162,7 +158,7 @@ SARrouteUIDialog::~SARrouteUIDialog() {
   if (pConf) {
     pConf->SetPath(_T ( "/PlugIns/SARroute" ));
   }
-  SaveXML(m_default_configuration_path);
+  // SaveXML(m_default_configuration_path);
 }
 
 void SARrouteUIDialog::SetCursorLatLon(double lat, double lon) {
@@ -220,8 +216,6 @@ void SARrouteUIDialog::AddChartRoute(wxString myRoute) {}
 
 void SARrouteUIDialog::OnReadRTZ(wxCommandEvent& event) { ReadRTZ(); }
 
-double SARrouteUIDialog::ReadNavobj() { return -1; }
-
 int SARrouteUIDialog::GetRandomNumber(int range_min, int range_max) {
   long u = (long)wxRound(
       ((double)rand() / ((double)(RAND_MAX) + 1) * (range_max - range_min)) +
@@ -233,16 +227,95 @@ bool SARrouteUIDialog::OpenXML(wxString filename, bool reportfailure) {
   return false;
 }
 
-void SARrouteUIDialog::SaveXML(wxString filename) {
-  
+void SARrouteUIDialog::SaveXML() {
+  // Create Main level XML container
+  xml_document xmlDoc;
+
+  auto declarationNode = xmlDoc.append_child(node_declaration);
+
+  declarationNode.append_attribute("version") = "1.0";
+
+  declarationNode.append_attribute("encoding") = "UTF-8";
+
+  // Create XML root node called animals
+  xml_node pRoot = xmlDoc.append_child("targets");
+
+  // ************* Add routeInfo to root node *******
+
+  // xml_node routeInfo = pRoot.append_child("routeInfo");
+  // routeInfo.append_attribute("routeName").set_value(route_name.mb_str());
+
+  // Insert cat's name as first child of animal
+
+  // ************* Add waypoints *******
+  // xml_node targetpoints = pRoot.append_child("target_points");
+
+  int idn = 0;
+  wxString route;
+
+  for (std::vector<IndexTarget>::iterator itOut = i_vector.begin();
+       itOut != i_vector.end(); itOut++) {
+    xml_node m_targetpoint = pRoot.append_child("index_target");
+    route = (*itOut).route_name;
+
+    // wxString myIdn = wxString::Format("%i", idn);
+    m_targetpoint.append_attribute("route_name").set_value(route.mb_str());
+    m_targetpoint.append_attribute("wp_id").set_value((*itOut).wpId.mb_str());
+
+    xml_node b_position = m_targetpoint.append_child("begin");
+
+    wxString bLat = wxString::Format("%f", (*itOut).beginLat);
+    wxString bLon = wxString::Format("%f", (*itOut).beginLon);
+
+    b_position.append_attribute("lat").set_value(bLat);
+    b_position.append_attribute("lon").set_value(bLon);
+
+    xml_node e_position = m_targetpoint.append_child("end");
+
+    wxString eLat = wxString::Format("%f", (*itOut).endLat);
+    wxString eLon = wxString::Format("%f", (*itOut).endLon);
+
+    e_position.append_attribute("lat").set_value(eLat);
+    e_position.append_attribute("lon").set_value(eLon);
+
+    idn++;
+  }
+  // done adding waypoints
+  // Write xmlDoc into a file
+
+  wxFileDialog dlg(this, _("Save in XML format"), wxEmptyString, route,
+                   " XML files(*.xml) | *.xml;*XML",
+                   wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+
+  if (dlg.ShowModal() == wxID_OK) {
+    if (dlg.GetPath() != wxEmptyString) {
+      wxString file_name = route + ".xml";
+      // dlg.GetFilename();
+      wxString file_path = dlg.GetPath();
+
+      // Route name must be the same as the file name, without file extension
+
+      int fl = file_name.length();
+      wxString xml_name = file_name.SubString(0, (fl - 5));
+
+      wxMessageBox(xml_name);
+
+      if (route != xml_name) {
+        wxMessageBox(_("XML file name must be the same as route name"),
+                     "Error");
+        return;
+      }
+
+      xmlDoc.save_file(file_path.mb_str());
+      return;
+    } else
+      return;
+  }
 }
 
-void SARrouteUIDialog::SelectRoutePoints(wxString routeName) {
-  
-}
+void SARrouteUIDialog::SelectRoutePoints(wxString routeName) {}
 
 wxString SARrouteUIDialog::SelectRoute(bool isDR) { return ""; }
-
 
 /*:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::*/
 /*:: This function converts decimal degrees to radians :*/
@@ -717,11 +790,17 @@ void SARrouteUIDialog::MakeEBLEvent() {
   RequestRefresh(pParent);
 }
 
-void SARrouteUIDialog::OnIndex(wxCommandEvent& event) {
+void SARrouteUIDialog::OnLoadRTZ(wxCommandEvent& event) {
   ReadRTZ();
+  ChartTheRoute(mySelectedRoute);
+  i_vector.clear();
+}
+
+void SARrouteUIDialog::OnIndex(wxCommandEvent& event) {
+  //ReadRTZ();
   active_waypoint = FindActiveWaypoint(id_wpt);
   if (active_waypoint->wpName == wxEmptyString) {
-    wxMessageBox("Check NMEA");
+    wxMessageBox("Activate the route/waypoint");
     return;
   }
   // wxMessageBox(active_waypoint->wpName);
@@ -774,9 +853,11 @@ void SARrouteUIDialog::FindIndex(Position* A, Position* B) {
   wxString sdlon = wxString::Format("%f", dlon);
   // wxMessageBox(sdlon);
 
-  i_vector.clear();
-
   i_target = new IndexTarget;
+  i_target->route_name = A->route_name;
+  // wxMessageBox(i_target->route_name);
+  i_target->wpId = A->wpId;
+  // wxMessageBox(i_target->wpId);
   i_target->beginLat = dlat;
   i_target->beginLon = dlon;
   i_target->endLat = lat3;
@@ -826,8 +907,6 @@ void SARrouteUIDialog::FindDirection(Position* A, Position* B) {
   double lon3 = centreLon;
   double brg, dist;
 
-
-
   // Bearing A -> B
   DistanceBearingMercator_Plugin(lat1, lon1, lat2, lon2, &brg, &dist);
 
@@ -839,14 +918,11 @@ void SARrouteUIDialog::FindDirection(Position* A, Position* B) {
   d_target->m_dir = brg;
 
   d_vector.push_back(*d_target);
-
 }
 
 void SARrouteUIDialog::OnSaveObjects(wxCommandEvent& event) {
-
-wxString save_folder = pPlugIn->StandardPath();
-  wxMessageBox(save_folder);
-
+  wxString save_folder = pPlugIn->StandardPath();
+  SaveXML();
 }
 
 void SARrouteUIDialog::SetNMEAMessage(wxString sentence) {
@@ -869,8 +945,6 @@ void SARrouteUIDialog::SetNMEAMessage(wxString sentence) {
     id_wpt = s10;
   }
 }
-
-
 
 void SARrouteUIDialog::ReadRTZ() {
   rtz_version = "";
@@ -921,8 +995,10 @@ void SARrouteUIDialog::ReadRTZ() {
 
   string route_name = pRouteNameElement.attribute("routeName").value();
   my_position.route_name = route_name;
+  mySelectedRoute = route_name;
+
   bool exists = false;
-  // wxMessageBox(s);
+  // wxMessageBox(route_name);
 
   xml_node pWaypointsElement = xmlDoc.child("route").child("waypoints");
   if (pWaypointsElement == nullptr) return;
@@ -935,7 +1011,7 @@ void SARrouteUIDialog::ReadRTZ() {
     value = pListWaypointsElement.attribute("id").value();
     if (value == "nullptr") return;  // must have id
     my_position.wpId = value;
-    // wxMessageBox(sti);
+    // wxMessageBox(value);
 
     value = pListWaypointsElement.attribute("name").value();
     if (value != "nullptr") {
@@ -984,6 +1060,10 @@ Position* SARrouteUIDialog::FindActiveWaypoint(wxString wpt_name) {
       active_waypoint->wpName = wpn;
       active_waypoint->lat = (*itp).lat;
       active_waypoint->lon = (*itp).lon;
+      active_waypoint->route_name = (*itp).route_name;
+      // wxMessageBox(active_waypoint->route_name);
+      active_waypoint->wpId = (*itp).wpId;
+      // wxMessageBox(active_waypoint->wpId);
 
       prev_waypoint->wpName = (*prev).wpName;
       prev_waypoint->lat = (*prev).lat;
@@ -995,8 +1075,6 @@ Position* SARrouteUIDialog::FindActiveWaypoint(wxString wpt_name) {
   active_waypoint->wpName = wxEmptyString;
   return active_waypoint;
 }
-
-
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -1128,4 +1206,3 @@ void ConfigurationDialog::OnGenerate(wxCommandEvent& event) {
 }
 
 void ConfigurationDialog::OnClose(wxCommandEvent& event) { Hide(); }
-

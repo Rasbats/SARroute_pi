@@ -196,10 +196,7 @@ void SARrouteOverlayFactory::DrawIndexTargets(PlugIn_ViewPort *BBox) {
     GetCanvasPixLL(BBox, &ib, (*it).beginLat, (*it).beginLon);
     wxPoint ie;
     GetCanvasPixLL(BBox, &ie, (*it).endLat, (*it).endLon);
-
-    if (m_dc) {
-      m_dc->DrawLine(ib.x, ib.y, ie.x, ie.y, true);
-    }
+    DrawGLLine(ib.x, ib.y, ie.x, ie.y, 2, colour);
   }
 }
 
@@ -284,8 +281,40 @@ void SARrouteOverlayFactory::DrawAllLinesInViewPort(PlugIn_ViewPort *BBox) {
   }
 }
 
+void SARrouteOverlayFactory::DrawGLLine(double x1, double y1, double x2,
+                                          double y2, double width,
+                                          wxColour myColour) {
+  {
+    wxColour isoLineColor = myColour;
+    glColor4ub(isoLineColor.Red(), isoLineColor.Green(), isoLineColor.Blue(),
+               255 /*isoLineColor.Alpha()*/);
+
+    glPushAttrib(GL_COLOR_BUFFER_BIT | GL_LINE_BIT | GL_ENABLE_BIT |
+                 GL_POLYGON_BIT | GL_HINT_BIT);  // Save state
+    {
+      //      Enable anti-aliased lines, at best quality
+      glEnable(GL_LINE_SMOOTH);
+      glEnable(GL_BLEND);
+      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+      glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+      glLineWidth(width);
+
+      glLineStipple(3, 0xAAAA);
+      glEnable(GL_LINE_STIPPLE);
+
+      glBegin(GL_LINES);
+      glVertex2d(x1, y1);
+      glVertex2d(x2, y2);
+      glEnd();
+    }
+
+    glPopAttrib();
+  }
+}
+
+
 void SARrouteOverlayFactory::DrawMessageWindow(wxString msg, int x, int y,
-                                              wxFont *mfont) {
+                                               wxFont *mfont) {
   if (msg.empty()) return;
 
   wxMemoryDC mdc;
@@ -504,38 +533,8 @@ wxImage &SARrouteOverlayFactory::DrawGLTextString(wxString myText) {
   return m_labelCacheText[myText];
 }
 
-void SARrouteOverlayFactory::DrawGLLine(double x1, double y1, double x2,
-                                       double y2, double width,
-                                       wxColour myColour) {
-  {
-    wxColour isoLineColor = myColour;
-    glColor4ub(isoLineColor.Red(), isoLineColor.Green(), isoLineColor.Blue(),
-               255 /*isoLineColor.Alpha()*/);
-
-    glPushAttrib(GL_COLOR_BUFFER_BIT | GL_LINE_BIT | GL_ENABLE_BIT |
-                 GL_POLYGON_BIT | GL_HINT_BIT);  // Save state
-    {
-      //      Enable anti-aliased lines, at best quality
-      glEnable(GL_LINE_SMOOTH);
-      glEnable(GL_BLEND);
-      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-      glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-      glLineWidth(width);
-
-      glLineStipple(3, 0xAAAA);
-      glEnable(GL_LINE_STIPPLE);
-
-      glBegin(GL_LINES);
-      glVertex2d(x1, y1);
-      glVertex2d(x2, y2);
-      glEnd();
-    }
-
-    glPopAttrib();
-  }
-}
 void SARrouteOverlayFactory::DrawOLBitmap(const wxBitmap &bitmap, wxCoord x,
-                                         wxCoord y, bool usemask) {
+                                          wxCoord y, bool usemask) {
   wxBitmap bmp;
   if (x < 0 || y < 0) {
     int dx = (x < 0 ? -x : 0);
@@ -605,9 +604,9 @@ void SARrouteOverlayFactory::DrawOLBitmap(const wxBitmap &bitmap, wxCoord x,
 }
 
 void SARrouteOverlayFactory::DrawGLLabels(SARrouteOverlayFactory *pof, wxDC *dc,
-                                         PlugIn_ViewPort *vp,
-                                         wxImage &imageLabel, double myLat,
-                                         double myLon, int offset) {
+                                          PlugIn_ViewPort *vp,
+                                          wxImage &imageLabel, double myLat,
+                                          double myLon, int offset) {
   //---------------------------------------------------------
   // Ecrit les labels
   //---------------------------------------------------------
@@ -792,10 +791,10 @@ wxImage &SARrouteOverlayFactory::DrawGLPolygon() {
 
   */
 }
-void SARrouteOverlayFactory::drawGLPolygons(SARrouteOverlayFactory *pof, wxDC *dc,
-                                           PlugIn_ViewPort *vp,
-                                           wxImage &imageLabel, double myLat,
-                                           double myLon, int offset) {
+void SARrouteOverlayFactory::drawGLPolygons(SARrouteOverlayFactory *pof,
+                                            wxDC *dc, PlugIn_ViewPort *vp,
+                                            wxImage &imageLabel, double myLat,
+                                            double myLon, int offset) {
   //---------------------------------------------------------
   // Ecrit les labels
   //---------------------------------------------------------
@@ -864,7 +863,8 @@ void SARrouteOverlayFactory::drawGLPolygons(SARrouteOverlayFactory *pof, wxDC *d
   }
 }
 
-void SARrouteOverlayFactory::DrawAllDirectionsInViewPort(PlugIn_ViewPort *BBox) {
+void SARrouteOverlayFactory::DrawAllDirectionsInViewPort(
+    PlugIn_ViewPort *BBox) {
   // if (BBox->chart_scale > 1000000){
   // return;
   //}
@@ -917,16 +917,15 @@ void SARrouteOverlayFactory::DrawAllDirectionsInViewPort(PlugIn_ViewPort *BBox) 
     DrawDirectionArrow(pixxc, pixyc, dir - 90 + rot_vp, scale / 30, tcvalue,
                        wxColour("GREEN"));
 
-    wxFont *pTCFont;
-    pTCFont = wxTheFontList->FindOrCreateFont(
-        12, wxDEFAULT, wxNORMAL, wxBOLD, FALSE, wxString("Eurostile Extended"));
     char sbuf[20];
-    int shift = 0;
 
     if (m_dc) {
-      m_dc->SetFont(*pTCFont);
+      wxFont myFont(30, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL,
+                    wxFONTWEIGHT_BOLD);
+
+      m_dc->SetFont(myFont);
       snprintf(sbuf, 19, "%03.0f", dir);
-      m_dc->DrawText(wxString(sbuf, wxConvUTF8), pixxc, pixyc + shift);
+      m_dc->DrawRotatedText(wxString(sbuf, wxConvUTF8), pixxc, pixyc, dir);
     }
 
     // move pix for second arrow
@@ -936,7 +935,6 @@ void SARrouteOverlayFactory::DrawAllDirectionsInViewPort(PlugIn_ViewPort *BBox) 
     PositionBearingDistanceMercator_Plugin(myLat, myLon, move_dir, 0.06,
                                            &new_lat, &new_lon);
 
-    
     GetCanvasPixLL(BBox, &cpoint, new_lat, new_lon);
 
     pixxc = cpoint.x;
@@ -945,21 +943,27 @@ void SARrouteOverlayFactory::DrawAllDirectionsInViewPort(PlugIn_ViewPort *BBox) 
     DrawDirectionArrow(pixxc, pixyc, rdir - 90 + rot_vp, scale / 30, tcvalue,
                        wxColour("RED"));
 
-     double text_dir = (int)rdir % 360;
+    double text_dir = (int)rdir % 360;
 
-     double print_dir = (((int)text_dir + 360) % 360);
+    double print_dir = (((int)text_dir + 360) % 360);
 
     if (m_dc) {
-      m_dc->SetFont(*pTCFont);
+      wxFont myFont(30, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL,
+                    wxFONTWEIGHT_BOLD);
+
+      m_dc->SetFont(myFont);
+
+      m_dc->SetTextForeground("RED");
+
       snprintf(sbuf, 19, "%03.0f", print_dir);
-      m_dc->DrawText(wxString(sbuf, wxConvUTF8), pixxc, pixyc + shift);
+      m_dc->DrawRotatedText(wxString(sbuf, wxConvUTF8), pixxc, pixyc, print_dir);
     }
   }
 }
 
 bool SARrouteOverlayFactory::DrawDirectionArrow(int x, int y, double rot_angle,
-                                               double scale, double direction,
-                                               wxColour arrow_color) {
+                                                double scale, double direction,
+                                                wxColour arrow_color) {
   // double m_rate = fabs(rate);
 
   wxColour colour;

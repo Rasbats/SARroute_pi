@@ -275,6 +275,7 @@ wxString SARroute_pi::StandardPath() {
   stdPath += s;
   return stdPath;
 }
+
 bool SARroute_pi::RenderOverlay(wxDC &dc, PlugIn_ViewPort *vp) {
   if (!m_pSARrouteDialog || !m_pSARrouteDialog->IsShown() ||
       !m_pSARrouteOverlayFactory)
